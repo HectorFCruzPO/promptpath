@@ -1,104 +1,123 @@
 # PromptPath
 
-A searchable prompt knowledge base for product owners and product managers. Created by Hector Cruz.
+**Find the right product prompt, follow the workflow, and help improve the collection.**
 
-## The problem
+A public, searchable prompt knowledge base for product owners and product managers, created by Hector Cruz. The standalone website is designed for **GitHub Pages** and uses **GitHub Issues** for contribution proposals. No ChatGPT account or model API key is required to browse, search, or copy prompts.
 
-Useful prompts are scattered across documents and chat history. Finding one is only part of the problem: people also need the sequence of tasks around it, the context to use it correctly, and a way to recommend improvements without overwriting a curated version.
+## Why it exists
 
-## What the MVP does
+Useful prompts get scattered across documents and chat histories. People need more than a list: they need the right prompt for the task, a clear next step, and a way to recommend improvements without overwriting curated content.
 
-- Search 29 curated prompts by task and related keywords, or browse seven categories.
-- Open deep links to a prompt and copy the prompt with optional shared context.
-- Include research evidence rules or read-only analysis safeguards in the relevant prompts.
-- Follow four guided workflows; open the correct prompt at each step.
-- Propose new prompts or edits with a reason; store proposals in a persistent pending queue.
-- Keep curated content unchanged until a reviewer deliberately updates source.
+## Features
 
-The initial prompt templates are generalized from a PO/PM playbook. Company-specific policies, customer records, and historical project questions are excluded.
+- **29 prompts** grouped into **seven categories** with clear purposes.
+- Task search with keyword matching and related terms; category browsing.
+- **Four guided workflows** for delivery, research, data analysis, and meeting follow-up.
+- Copy prompt wording with optional core instructions, research rules, or read-only safeguards.
+- Direct links to prompts and workflows that preserve the GitHub Pages repository path.
+- New prompt and edit proposals with a required reason.
+- GitHub issue draft handoff, including a copy/paste fallback for large prompts.
+- Keyboard access, modal focus handling, and responsive layouts.
 
-Source: [HectorFCruzPO/promptpath](https://github.com/HectorFCruzPO/promptpath). The current hosted app is private; public source access does not grant access to the hosted app or its proposal database.
+Search uses deterministic keyword and synonym matching, not semantic vectors or an LLM. The templates are generalized; company policies, customer records, credentials, and confidential project examples are excluded.
 
-## Architecture
+## Run locally
 
-- React and TypeScript UI on Vinext.
-- Cloudflare Workers request handling and D1 SQLite persistence.
-- Drizzle schema and versioned SQL migrations.
-- Platform-managed ChatGPT sign-in for contribution writes.
-- `lib/content.json`: curated prompt and category data plus reusable instruction blocks.
-- `lib/workflows.ts`: workflow steps reference stable prompt IDs.
-- `app/api/contributions/route.ts`: read proposal queue and accept validated authenticated proposals.
-
-Search is a deterministic keyword-and-synonym matcher, not an LLM or semantic vector search. No paid model API is required. This makes the project a complement to the separate FX Lag Intelligence project, which centers on external data feeds and alerting.
-
-## Local development
-
-Use Node **22.18 or later** and **pnpm 11.25.0**. The content test uses Node's built-in experimental SQLite support. Install the pinned pnpm version through your preferred Node package manager, then run:
+Use **Node 24** and the pinned **pnpm 11.25.0** version.
 
 ```sh
 git clone https://github.com/HectorFCruzPO/promptpath.git
 cd promptpath
+npm install --global pnpm@11.25.0
 pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Open the local URL printed by the development server (port 5173 by default).
+Open the URL printed by Vite. To build and preview the static output:
+
+```sh
+pnpm build
+pnpm preview
+```
+
+The `pages-dist/` output contains only static HTML, CSS, JavaScript, and the favicon. It does not deploy the original server, database, authentication code, or proposal records.
+
+## Publish with GitHub Pages
+
+One-time repository setup:
+
+1. Open **Settings → Pages** in this repository.
+2. Under **Build and deployment → Source**, select **GitHub Actions**.
+3. Open **Actions → Deploy PromptPath to GitHub Pages → Run workflow** and select `main` if a deployment has not already started.
+4. After the deployment succeeds, use the website link displayed in **Settings → Pages** or the workflow's `github-pages` environment.
+
+The workflow checks content, TypeScript, the production build, share links, and the GitHub issue handoff before publishing. Later pushes to `main` deploy automatically. Pull requests and forks do not deploy through this workflow. If the first run reports that the Pages site cannot be found, complete the one-time settings step and run it again.
+
+GitHub Actions stores the built artifact and publishes it through GitHub Pages. No personal access token or external hosting account is needed. Repository administrators may still need to allow GitHub Actions under their account or organization policies.
+
+## How contributions work
+
+1. Click **Submit a prompt** or **Suggest an edit** on the website.
+2. Provide the proposed wording and a reason.
+3. Click **Prepare GitHub proposal**.
+4. Review the draft and click **Continue to GitHub**.
+5. Sign into GitHub if needed, review the issue, and click **Submit new issue**.
+
+Preparing a draft does **not** submit an issue. Short drafts travel in the GitHub issue URL. For a large or Unicode-heavy draft, copy the complete body in the app and paste it into GitHub; the app never truncates the proposed wording. Keep the app tab open until you submit: draft text is held in memory, not a shared database.
+
+Proposals are public. Do not include private customer data, credentials, tax records, or confidential requirements. Issues are proposals, not automatic prompt changes. A maintainer discusses a proposal, updates curated source through a reviewed commit or pull request, and links that change to the issue. The next successful deployment publishes the update.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the review process. Issue templates also support contributions made directly in GitHub.
+
+## Project structure
+
+| Location | Purpose |
+|---|---|
+| `pages/App.tsx` | Standalone React application for GitHub Pages |
+| `pages/github.mjs` | GitHub issue drafts and repository-safe share links |
+| `pages/vite.config.ts` | Static build configuration with relative assets |
+| `lib/content.json` | Prompts, categories, and reusable instruction blocks |
+| `lib/workflows.ts` | Workflow steps linked to stable prompt IDs |
+| `lib/contribution-validation.ts` | Contribution field validation |
+| `app/globals.css` | Shared visual design |
+| `.github/workflows/pages.yml` | Checks, static build, and Pages deployment |
+| `.github/ISSUE_TEMPLATE/` | New-prompt and edit templates |
+| `scripts/test-pages.mjs` | Static handoff, path, and bundle checks |
+| `scripts/test-product.mjs` | Content, validation, and original migration checks |
+
+The original platform-hosted implementation remains in `app/`, `worker/`, and `db/` as a separate reference. Its original deployment remains private. Its backend is not used or published by the Pages build. `pnpm dev:hosted` and `pnpm build:hosted` retain the original platform commands; they require their own platform configuration. Never expose that backend independently while trusting client-supplied identity headers.
+
+## Validation
 
 ```sh
 pnpm test
 pnpm exec tsc --noEmit
 pnpm build
+pnpm test:pages
 ```
 
-To initialize the local proposal database, after building and while local development is stopped:
-
-```sh
-pnpm exec wrangler d1 execute site-creator-d1 --local --config dist/server/wrangler.json --file drizzle/0000_flippant_satana.sql
-```
-
-The local Wrangler configuration is generated by `pnpm build`. Local and production databases are separate. `pnpm db:generate` generates new SQL migrations when the schema changes; it does not apply them.
-
-### Hosting and authentication boundaries
-
-This source was built with Sites, Vinext, and Cloudflare Workers/D1. It is **not a GitHub Pages static app**. The public checkout omits the original Site project ID, credentials, proposal records, and local runtime state. Publishing a separate deployment requires its own hosting identity and D1 database.
-
-Hosted contribution writes trust identity headers supplied by the Sites authentication gateway. A local preview may supply mock identity or have no visitor identity. **Do not expose the Worker directly on the public internet while trusting client-supplied identity headers.** An independent host must authenticate requests at a trusted gateway, strip untrusted identity headers, and provision the database before enabling contribution writes. The original deployment remains private.
-
-Search, prompt browsing, workflow navigation, and copying run without a model API key. Persistent proposal submission requires the backend and authentication setup above. A fresh local install/build has not been verified outside the managed development environment.
-
-## Contribution model
-
-A proposal has a type, title, category, proposed wording, reason, timestamp, and pending status. Edit proposals reference an existing prompt ID. Submissions require an authenticated visitor and same-origin request. Input lengths are bounded; repeat submissions are limited to five per ten minutes per user. Author identifiers remain server-side and are not exposed in the proposal list.
-
-Pending proposals do not automatically change curated prompts. This first version has no moderation approval UI or GitHub issue/PR integration. Source review is the next deliberate step. Do not submit credentials, customer records, tax information, or confidential requirements.
+The static build, TypeScript, content, and handoff checks have passed in the development environment. Fresh installation and publication on GitHub are verified by the workflow; do not infer deployment success from a source commit alone. Browser checks cover search, workflow handoffs, issue preparation, and links. No test issue is automatically posted.
 
 ## Product decisions
 
-1. Link workflows to stable prompt IDs rather than duplicating prompt text.
-2. Keep source content distinct from proposals to avoid unreviewed changes.
-3. Store shared proposals in the database; browser preferences are not a shared backend.
-4. Make safety instructions visible and optional to copy when already present in a project.
-5. Default to a private deployment while validating behavior and reviewing content.
+1. Organize prompts around real tasks and connect them through workflows.
+2. Reference stable prompt IDs instead of duplicating wording.
+3. Keep proposals separate from curated content.
+4. Use GitHub Issues for shared discussion, attribution, and review.
+5. Publish the standalone experience without requiring a custom application backend.
 
-## Success measures to validate
+## Roadmap and success measures
 
-- Task completion: can a user find and copy the right prompt for a scenario?
-- Findability: time and search attempts before opening a suitable prompt.
-- Workflow usefulness: can a user identify the next step and explain the handoff?
-- Contribution quality: proportion of proposals with actionable reasoning.
+- Run usability sessions: measure time to find and copy a suitable prompt.
+- Check whether users understand the next workflow step and its handoff.
+- Track whether proposals include useful wording and reasons.
+- Add prompt version history and a project board.
+- Improve search based on observed failed searches.
 
-No analytics or outcome improvement is claimed in this MVP. Validate these measures with a small usability study before reporting results.
-
-## Roadmap
-
-1. Add a GitHub project board and record the initial product decisions.
-2. Conduct scenario-based usability checks and document changes.
-3. Add reviewer permissions, decisions, and prompt version history.
-4. Review content and choose an audience before public sharing.
-5. Consider GitHub issue/PR integration and improved search only after observed need.
+No user-outcome improvement or analytics results are claimed yet.
 
 ## Portfolio description
 
-Built a searchable prompt knowledge base that connects reusable PO/PM prompts to task workflows and collects reasoned improvement proposals. Defined the information architecture, implemented a full-stack application, separated curated content from contributions, and designed validation checks for the core journeys.
+Designed and built a searchable PO/PM prompt knowledge base with task-based information architecture, guided workflows, reusable safety instructions, and a contribution review process. Adapted the product for static hosting with GitHub Pages and GitHub Issues, with automated build and content checks.
 
-This project is independent and is not affiliated with Anthropic. The repository includes source and documentation; GitHub hosting does not automatically deploy the application.
+Independent project; not affiliated with Anthropic. Third-party license notices remain with their source files. A project-wide license has not yet been selected.
